@@ -944,18 +944,95 @@ const businessWorkflowCatalog = {
   },
 };
 
-const automationCatalog = [
-  { id: "lead_follow_up", name: "Seguimiento de leads", description: "Clasificación, asignación y recordatorios de seguimiento.", connector: "CRM", monthlyPriceCents: 4900 },
-  { id: "campaign_optimizer", name: "Optimización de campañas", description: "Revisión de rendimiento y propuestas de ajuste de campañas.", connector: "Ads", monthlyPriceCents: 12900 },
-  { id: "renewal_alerts", name: "Alertas de renovación", description: "Detección de renovaciones próximas y avisos al equipo.", connector: "Billing", monthlyPriceCents: 3900 },
-  { id: "operations_scheduling", name: "Programación operativa", description: "Priorización y programación de tareas operativas.", connector: "ERP", monthlyPriceCents: 8900 },
-  { id: "notifications", name: "Notificaciones de clientes", description: "Avisos de eventos por los canales configurados.", connector: "Notifications", monthlyPriceCents: 2900 },
+const businessTypeCatalog = [
+  {
+    id: "automotive", name: "Automotriz", automations: [
+      { id: "lead_follow_up", name: "Seguimiento de solicitudes", description: "Clasificación y seguimiento de solicitudes de servicio.", connector: "CRM", monthlyPriceCents: 4900 },
+      { id: "campaign_optimizer", name: "Optimización de campañas", description: "Revisión de rendimiento y propuestas de ajuste de campañas.", connector: "Ads", monthlyPriceCents: 12900 },
+      { id: "operations_scheduling", name: "Agenda de taller", description: "Programación de citas y recordatorios de servicio.", connector: "Scheduling", monthlyPriceCents: 8900 },
+      { id: "notifications", name: "Avisos de servicio", description: "Notificaciones de estado y seguimiento al cliente.", connector: "Notifications", monthlyPriceCents: 2900 },
+    ],
+  },
+  {
+    id: "restaurant", name: "Restaurantes y cafeterías", automations: [
+      { id: "restaurant_reservations", name: "Reservas y confirmaciones", description: "Confirmación y recordatorio de reservas.", connector: "Reservations", monthlyPriceCents: 3900 },
+      { id: "restaurant_orders", name: "Seguimiento de pedidos", description: "Avisos de recepción, preparación y entrega.", connector: "POS", monthlyPriceCents: 5900 },
+      { id: "restaurant_inventory", name: "Alertas de inventario", description: "Avisos de existencias bajas para ingredientes clave.", connector: "Inventory", monthlyPriceCents: 7900 },
+      { id: "restaurant_reviews", name: "Solicitud de reseñas", description: "Solicitud de reseña después de una visita.", connector: "Notifications", monthlyPriceCents: 2900 },
+    ],
+  },
+  {
+    id: "real_estate", name: "Bienes raíces", automations: [
+      { id: "real_estate_leads", name: "Distribución de prospectos", description: "Asignación y seguimiento de consultas inmobiliarias.", connector: "CRM", monthlyPriceCents: 6900 },
+      { id: "real_estate_showings", name: "Coordinación de visitas", description: "Agenda, confirmación y recordatorios de visitas.", connector: "Scheduling", monthlyPriceCents: 4900 },
+      { id: "real_estate_listing_updates", name: "Actualización de propiedades", description: "Sincronización de disponibilidad y estado de anuncios.", connector: "Listing platform", monthlyPriceCents: 9900 },
+      { id: "real_estate_pipeline", name: "Seguimiento de ofertas", description: "Avisos de hitos y próximos pasos de negociación.", connector: "CRM", monthlyPriceCents: 7900 },
+    ],
+  },
+  {
+    id: "ecommerce", name: "Comercio electrónico", automations: [
+      { id: "ecommerce_cart", name: "Recuperación de carritos", description: "Recordatorios para carritos abandonados.", connector: "Ecommerce", monthlyPriceCents: 7900 },
+      { id: "ecommerce_orders", name: "Actualizaciones de pedidos", description: "Avisos de pago, preparación y envío.", connector: "Ecommerce", monthlyPriceCents: 5900 },
+      { id: "ecommerce_stock", name: "Sincronización de inventario", description: "Alertas de stock y disponibilidad de productos.", connector: "Inventory", monthlyPriceCents: 8900 },
+      { id: "ecommerce_reviews", name: "Seguimiento posventa", description: "Solicitud de opinión después de la entrega.", connector: "Notifications", monthlyPriceCents: 3900 },
+    ],
+  },
+  {
+    id: "healthcare", name: "Clínicas y consultorios", automations: [
+      { id: "clinic_intake", name: "Recepción de pacientes", description: "Clasificación y seguimiento de solicitudes de cita.", connector: "CRM", monthlyPriceCents: 8900 },
+      { id: "clinic_appointments", name: "Recordatorios de citas", description: "Confirmación y recordatorio de citas.", connector: "Scheduling", monthlyPriceCents: 4900 },
+      { id: "clinic_follow_up", name: "Seguimiento posconsulta", description: "Avisos de seguimiento definidos por el consultorio.", connector: "Practice management", monthlyPriceCents: 6900 },
+      { id: "clinic_billing", name: "Avisos administrativos", description: "Recordatorios de documentos y estados de cuenta.", connector: "Billing", monthlyPriceCents: 7900 },
+    ],
+  },
+  {
+    id: "legal", name: "Servicios legales", automations: [
+      { id: "legal_intake", name: "Recepción de casos", description: "Clasificación inicial y asignación de consultas.", connector: "CRM", monthlyPriceCents: 7900 },
+      { id: "legal_consultations", name: "Agenda de consultas", description: "Programación y confirmación de consultas.", connector: "Scheduling", monthlyPriceCents: 4900 },
+      { id: "legal_milestones", name: "Avisos de hitos", description: "Recordatorios de fechas y tareas del expediente.", connector: "Case management", monthlyPriceCents: 7900 },
+      { id: "legal_documents", name: "Solicitud de documentos", description: "Seguimiento de documentos pendientes del cliente.", connector: "Document management", monthlyPriceCents: 8900 },
+    ],
+  },
+  {
+    id: "home_services", name: "Servicios para el hogar", automations: [
+      { id: "home_estimates", name: "Seguimiento de cotizaciones", description: "Recordatorios de cotizaciones pendientes.", connector: "CRM", monthlyPriceCents: 5900 },
+      { id: "home_dispatch", name: "Asignación de técnicos", description: "Programación de visitas por zona y disponibilidad.", connector: "Scheduling", monthlyPriceCents: 8900 },
+      { id: "home_job_updates", name: "Avisos de visita", description: "Confirmación de llegada y cambios de horario.", connector: "Notifications", monthlyPriceCents: 3900 },
+      { id: "home_invoices", name: "Recordatorios de factura", description: "Avisos de facturas próximas o vencidas.", connector: "Billing", monthlyPriceCents: 4900 },
+    ],
+  },
+  {
+    id: "education", name: "Educación y capacitación", automations: [
+      { id: "education_inquiries", name: "Seguimiento de interesados", description: "Clasificación y seguimiento de solicitudes de información.", connector: "CRM", monthlyPriceCents: 5900 },
+      { id: "education_enrollment", name: "Incorporación de alumnos", description: "Lista de pasos y avisos de inscripción.", connector: "LMS", monthlyPriceCents: 7900 },
+      { id: "education_attendance", name: "Alertas de asistencia", description: "Avisos sobre ausencias y eventos de clase.", connector: "LMS", monthlyPriceCents: 4900 },
+      { id: "education_tuition", name: "Recordatorios de colegiatura", description: "Avisos administrativos de pagos y vencimientos.", connector: "Billing", monthlyPriceCents: 4900 },
+    ],
+  },
+  {
+    id: "logistics", name: "Logística y transporte", automations: [
+      { id: "logistics_intake", name: "Recepción de órdenes", description: "Validación y clasificación inicial de órdenes.", connector: "TMS", monthlyPriceCents: 8900 },
+      { id: "logistics_dispatch", name: "Programación de despachos", description: "Asignación y seguimiento de cargas y rutas.", connector: "TMS", monthlyPriceCents: 9900 },
+      { id: "logistics_eta", name: "Avisos de entrega", description: "Notificación de estados y tiempos estimados.", connector: "Tracking", monthlyPriceCents: 6900 },
+      { id: "logistics_documents", name: "Control documental", description: "Avisos de documentos de transporte pendientes.", connector: "Document management", monthlyPriceCents: 7900 },
+    ],
+  },
+  {
+    id: "professional_services", name: "Servicios profesionales", automations: [
+      { id: "professional_leads", name: "Calificación de consultas", description: "Clasificación de solicitudes y asignación al equipo.", connector: "CRM", monthlyPriceCents: 5900 },
+      { id: "professional_proposals", name: "Seguimiento de propuestas", description: "Recordatorios de propuestas enviadas y pendientes.", connector: "CRM", monthlyPriceCents: 4900 },
+      { id: "professional_meetings", name: "Agenda de reuniones", description: "Programación y confirmación de reuniones.", connector: "Scheduling", monthlyPriceCents: 3900 },
+      { id: "professional_invoices", name: "Avisos de facturación", description: "Recordatorios de facturas y renovaciones.", connector: "Billing", monthlyPriceCents: 4900 },
+    ],
+  },
 ] as const;
 
 type AutomationQuote = {
   id: string;
   tenantName: string;
   tenantId: string;
+  businessType: string;
+  businessTypeName: string;
   status: "proposed" | "accepted" | "rejected";
   currency: "USD";
   monthlyTotalCents: number;
@@ -1000,7 +1077,11 @@ function writeAutomationQuotes(quotes: AutomationQuote[]) {
 app.get("/api/saas/automation/catalog", (c) => c.json({
   currency: "USD",
   billingPeriod: "monthly",
-  automations: automationCatalog.map((item) => ({ ...item, monthlyPrice: item.monthlyPriceCents / 100 })),
+  businessTypes: businessTypeCatalog.map((businessType) => ({
+    id: businessType.id,
+    name: businessType.name,
+    automations: businessType.automations.map((item) => ({ ...item, monthlyPrice: item.monthlyPriceCents / 100 })),
+  })),
 }));
 
 app.get("/api/saas/quotes/:tenantName", async (c) => {
@@ -1021,20 +1102,25 @@ app.post("/api/saas/quotes/:tenantName", async (c) => {
   if (required && !isAuthorizedForTenant(access, tenantName)) return c.json({ error: "Tenant access denied.", code: "TENANT_ACCESS_DENIED" }, 403);
 
   const body = await c.req.json().catch(() => ({}));
+  const businessTypeId = typeof body.businessType === "string" ? body.businessType : "";
+  const businessType = businessTypeCatalog.find((item) => item.id === businessTypeId);
+  if (!businessType) return c.json({ error: "Select one of the available business types." }, 400);
   const automationIds = body.automationIds;
-  if (!Array.isArray(automationIds) || automationIds.length < 1 || automationIds.length > automationCatalog.length
+  if (!Array.isArray(automationIds) || automationIds.length < 1 || automationIds.length > businessType.automations.length
     || automationIds.some((id: unknown) => typeof id !== "string")
     || new Set(automationIds).size !== automationIds.length) {
-    return c.json({ error: "Select between one and five unique automations." }, 400);
+    return c.json({ error: `Select between one and ${businessType.automations.length} unique automations for this business type.` }, 400);
   }
 
-  const selectedItems = automationCatalog.filter((item) => automationIds.includes(item.id));
+  const selectedItems = businessType.automations.filter((item) => automationIds.includes(item.id));
   if (selectedItems.length !== automationIds.length) return c.json({ error: "Unknown automation selected." }, 400);
 
   const quote: AutomationQuote = {
     id: randomUUID(),
     tenantName,
     tenantId: access.tenantId,
+    businessType: businessType.id,
+    businessTypeName: businessType.name,
     status: "proposed",
     currency: "USD",
     monthlyTotalCents: selectedItems.reduce((total, item) => total + item.monthlyPriceCents, 0),

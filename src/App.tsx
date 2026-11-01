@@ -21,8 +21,16 @@ type AutomationOption = {
   monthlyPriceCents: number;
 };
 
+type BusinessTypeOption = {
+  id: string;
+  name: string;
+  automations: AutomationOption[];
+};
+
 type AutomationQuote = {
   id: string;
+  businessType: string;
+  businessTypeName: string;
   status: "proposed" | "accepted" | "rejected";
   monthlyTotalCents: number;
   items: Array<{ id: string; name: string; connector: string; monthlyPriceCents: number }>;
@@ -187,7 +195,8 @@ export default function App({ initialTenant = "Autofix Center" }: { initialTenan
   } | null>(null);
   const [activationMessage, setActivationMessage] = useState("");
   const [isActivating, setIsActivating] = useState(false);
-  const [automationOptions, setAutomationOptions] = useState<AutomationOption[]>([]);
+  const [businessTypes, setBusinessTypes] = useState<BusinessTypeOption[]>([]);
+  const [selectedBusinessType, setSelectedBusinessType] = useState("automotive");
   const [selectedAutomationIds, setSelectedAutomationIds] = useState<string[]>([]);
   const [automationQuotes, setAutomationQuotes] = useState<AutomationQuote[]>([]);
   const [quoteMessage, setQuoteMessage] = useState("");
@@ -450,7 +459,7 @@ export default function App({ initialTenant = "Autofix Center" }: { initialTenan
     Promise.all([
       fetch("/api/saas/automation/catalog").then((response) => {
         if (!response.ok) throw new Error("No se pudo cargar el catálogo de automatizaciones.");
-        return response.json() as Promise<{ automations: AutomationOption[] }>;
+        return response.json() as Promise<{ businessTypes: BusinessTypeOption[] }>;
       }),
       fetch(`/api/saas/quotes/${encodeURIComponent(selectedTenant)}`, { credentials: "same-origin" }).then((response) => {
         if (!response.ok) throw new Error("No se pudieron cargar los presupuestos del tenant.");
@@ -459,7 +468,7 @@ export default function App({ initialTenant = "Autofix Center" }: { initialTenan
     ])
       .then(([catalog, quoteList]) => {
         if (!active) return;
-        setAutomationOptions(catalog.automations);
+        setBusinessTypes(catalog.businessTypes);
         setAutomationQuotes(quoteList.quotes);
         setQuoteMessage("");
       })
@@ -471,6 +480,8 @@ export default function App({ initialTenant = "Autofix Center" }: { initialTenan
 
   const data = snapshot ?? fallbackSnapshot;
   const selected = data.tenants.find((tenant) => tenant.name === selectedTenant) ?? data.tenants[0];
+  const selectedBusinessTypeOption = businessTypes.find((businessType) => businessType.id === selectedBusinessType);
+  const automationOptions = selectedBusinessTypeOption?.automations ?? [];
   const selectedMonthlyTotal = automationOptions
     .filter((automation) => selectedAutomationIds.includes(automation.id))
     .reduce((total, automation) => total + automation.monthlyPriceCents, 0);
@@ -483,7 +494,7 @@ export default function App({ initialTenant = "Autofix Center" }: { initialTenan
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ automationIds: selectedAutomationIds }),
+        body: JSON.stringify({ businessType: selectedBusinessType, automationIds: selectedAutomationIds }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No se pudo crear el presupuesto.");
@@ -996,8 +1007,22 @@ export default function App({ initialTenant = "Autofix Center" }: { initialTenan
         <div className="panel automation-quote-panel">
           <div className="panel-header">
             <h2>Elige tus automatizaciones</h2>
-            <span>Presupuesto mensual · USD</span>
+            <span>10 tipos de negocio · presupuesto mensual USD</span>
           </div>
+          <label className="business-type-select">
+            Tipo de negocio
+            <select
+              value={selectedBusinessType}
+              onChange={(event) => {
+                setSelectedBusinessType(event.target.value);
+                setSelectedAutomationIds([]);
+              }}
+            >
+              {businessTypes.map((businessType) => (
+                <option key={businessType.id} value={businessType.id}>{businessType.name}</option>
+              ))}
+            </select>
+          </label>
           <div className="automation-selection">
             {automationOptions.map((automation) => (
               <label key={automation.id} className="automation-choice">
@@ -1031,7 +1056,7 @@ export default function App({ initialTenant = "Autofix Center" }: { initialTenan
               {automationQuotes.map((quote) => (
                 <article key={quote.id} className="quote-item">
                   <div className="quote-item-heading">
-                    <strong>{quote.items.map((item) => item.name).join(", ")}</strong>
+                    <strong>{quote.businessTypeName}: {quote.items.map((item) => item.name).join(", ")}</strong>
                     <span className={`quote-status ${quote.status}`}>{quote.status === "proposed" ? "Pendiente" : quote.status === "accepted" ? "Aceptado" : "Rechazado"}</span>
                   </div>
                   <p>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(quote.monthlyTotalCents / 100)}/mes</p>

@@ -33,18 +33,21 @@ describe("automation quote lifecycle", () => {
   it("calculates monthly prices on the server and persists a tenant proposal", async () => {
     const catalogResponse = await app.request("http://localhost/api/saas/automation/catalog");
     const catalog = await catalogResponse.json();
-    expect(catalog.automations).toHaveLength(5);
+    expect(catalog.businessTypes).toHaveLength(10);
+    expect(catalog.businessTypes.every((businessType: { automations: unknown[] }) => businessType.automations.length >= 4)).toBe(true);
 
     const response = await app.request("http://localhost/api/saas/quotes/Autofix%20Center", {
       method: "POST",
       headers: { ...tenantHeaders, "content-type": "application/json" },
-      body: JSON.stringify({ automationIds: ["lead_follow_up", "notifications"], monthlyTotalCents: 1 }),
+      body: JSON.stringify({ businessType: "automotive", automationIds: ["lead_follow_up", "notifications"], monthlyTotalCents: 1 }),
     });
 
     expect(response.status).toBe(201);
     const { quote } = await response.json();
     expect(quote.monthlyTotalCents).toBe(7800);
     expect(quote.status).toBe("proposed");
+    expect(quote.businessType).toBe("automotive");
+    expect(quote.businessTypeName).toBe("Automotriz");
 
     const list = await app.request("http://localhost/api/saas/quotes/Autofix%20Center", { headers: tenantHeaders });
     expect((await list.json()).quotes).toHaveLength(1);
@@ -56,7 +59,7 @@ describe("automation quote lifecycle", () => {
     const created = await app.request("http://localhost/api/saas/quotes/Autofix%20Center", {
       method: "POST",
       headers: { ...tenantHeaders, "content-type": "application/json" },
-      body: JSON.stringify({ automationIds: ["campaign_optimizer"] }),
+      body: JSON.stringify({ businessType: "automotive", automationIds: ["campaign_optimizer"] }),
     });
     const { quote: proposal } = await created.json();
 
@@ -84,7 +87,7 @@ describe("automation quote lifecycle", () => {
     const created = await app.request("http://localhost/api/saas/quotes/Autofix%20Center", {
       method: "POST",
       headers: { ...tenantHeaders, "content-type": "application/json" },
-      body: JSON.stringify({ automationIds: ["renewal_alerts"] }),
+      body: JSON.stringify({ businessType: "automotive", automationIds: ["notifications"] }),
     });
     const { quote: proposal } = await created.json();
 
@@ -96,5 +99,14 @@ describe("automation quote lifecycle", () => {
     const { quote } = await rejected.json();
     expect(quote.status).toBe("rejected");
     expect(quote.activations).toEqual([]);
+  });
+
+  it("rejects automation IDs that do not belong to the selected business type", async () => {
+    const response = await app.request("http://localhost/api/saas/quotes/Autofix%20Center", {
+      method: "POST",
+      headers: { ...tenantHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ businessType: "restaurant", automationIds: ["lead_follow_up"] }),
+    });
+    expect(response.status).toBe(400);
   });
 });

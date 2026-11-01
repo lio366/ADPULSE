@@ -536,6 +536,26 @@ h2 {
   display: grid;
 }
 
+.business-type-select {
+  display: grid;
+  max-width: 420px;
+  gap: 7px;
+  margin-bottom: 12px;
+  color: #cbd5e1;
+  font-size: 0.88rem;
+}
+
+.business-type-select select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 6px;
+  background: #0b1c28;
+  color: #f8fafc;
+  font: inherit;
+}
+
 .automation-choice {
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr) auto;
