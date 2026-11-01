@@ -2,7 +2,8 @@ import { Hono, type Context } from "hono";
 import { serve } from "@hono/node-server";
 import { parse as parseCookies, serialize as serializeCookie } from "cookie";
 import { Queue, Worker } from "bullmq";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { authenticateCredentials, createAccessToken, isAuthConfigured, readAuthStoreHealth, verifyAccessToken } from "./auth";
 
@@ -942,6 +943,160 @@ const businessWorkflowCatalog = {
     sla: "4h",
   },
 };
+
+const automationCatalog = [
+  { id: "lead_follow_up", name: "Seguimiento de leads", description: "Clasificación, asignación y recordatorios de seguimiento.", connector: "CRM", monthlyPriceCents: 4900 },
+  { id: "campaign_optimizer", name: "Optimización de campañas", description: "Revisión de rendimiento y propuestas de ajuste de campañas.", connector: "Ads", monthlyPriceCents: 12900 },
+  { id: "renewal_alerts", name: "Alertas de renovación", description: "Detección de renovaciones próximas y avisos al equipo.", connector: "Billing", monthlyPriceCents: 3900 },
+  { id: "operations_scheduling", name: "Programación operativa", description: "Priorización y programación de tareas operativas.", connector: "ERP", monthlyPriceCents: 8900 },
+  { id: "notifications", name: "Notificaciones de clientes", description: "Avisos de eventos por los canales configurados.", connector: "Notifications", monthlyPriceCents: 2900 },
+] as const;
+
+type AutomationQuote = {
+  id: string;
+  tenantName: string;
+  tenantId: string;
+  status: "proposed" | "accepted" | "rejected";
+  currency: "USD";
+  monthlyTotalCents: number;
+  items: Array<{
+    id: string;
+    name: string;
+    description: string;
+    connector: string;
+    monthlyPriceCents: number;
+  }>;
+  activations: Array<{ automationId: string; status: "waiting_for_integration"; connector: string }>;
+  createdAt: string;
+  decidedAt: string | null;
+};
+
+function automationQuotesFilePath() {
+  return process.env.AUTOMATION_QUOTES_PATH ?? join(process.cwd(), ".data", "automation-quotes.json");
+}
+
+function readAutomationQuotes(): AutomationQuote[] {
+  const filePath = automationQuotesFilePath();
+  const directory = join(filePath, "..");
+  if (!existsSync(directory)) mkdirSync(directory, { recursive: true });
+  if (!existsSync(filePath)) writeFileSync(filePath, "[]\n", "utf8");
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(filePath, "utf8"));
+    return Array.isArray(parsed) ? parsed as AutomationQuote[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeAutomationQuotes(quotes: AutomationQuote[]) {
+  const filePath = automationQuotesFilePath();
+  const directory = join(filePath, "..");
+  if (!existsSync(directory)) mkdirSync(directory, { recursive: true });
+  const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+  writeFileSync(temporaryPath, `${JSON.stringify(quotes, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  renameSync(temporaryPath, filePath);
+}
+
+app.get("/api/saas/automation/catalog", (c) => c.json({
+  currency: "USD",
+  billingPeriod: "monthly",
+  automations: automationCatalog.map((item) => ({ ...item, monthlyPrice: item.monthlyPriceCents / 100 })),
+}));
+
+app.get("/api/saas/quotes/:tenantName", async (c) => {
+  const tenantName = decodeURIComponent(c.req.param("tenantName"));
+  const accessError = await requireTenantAccess(c, tenantName);
+  if (accessError) return accessError;
+  const quotes = readAutomationQuotes().filter((quote) => quote.tenantName === tenantName);
+  return c.json({ tenantName, quotes });
+});
+
+app.post("/api/saas/quotes/:tenantName", async (c) => {
+  const tenantName = decodeURIComponent(c.req.param("tenantName"));
+  const tenant = tenantDirectory[tenantName as keyof typeof tenantDirectory];
+  if (!tenant) return c.json({ error: "Unknown tenant." }, 404);
+  const access = await resolveQueueWriteContext(c);
+  const required = process.env.REQUIRE_AGENT_QUEUE_AUTH === "true" || process.env.NODE_ENV === "production";
+  if (required && !access.isAuthorized) return c.json({ error: "Authentication required.", code: "AUTH_REQUIRED" }, 401);
+  if (required && !isAuthorizedForTenant(access, tenantName)) return c.json({ error: "Tenant access denied.", code: "TENANT_ACCESS_DENIED" }, 403);
+
+  const body = await c.req.json().catch(() => ({}));
+  const automationIds = body.automationIds;
+  if (!Array.isArray(automationIds) || automationIds.length < 1 || automationIds.length > automationCatalog.length
+    || automationIds.some((id: unknown) => typeof id !== "string")
+    || new Set(automationIds).size !== automationIds.length) {
+    return c.json({ error: "Select between one and five unique automations." }, 400);
+  }
+
+  const selectedItems = automationCatalog.filter((item) => automationIds.includes(item.id));
+  if (selectedItems.length !== automationIds.length) return c.json({ error: "Unknown automation selected." }, 400);
+
+  const quote: AutomationQuote = {
+    id: randomUUID(),
+    tenantName,
+    tenantId: access.tenantId,
+    status: "proposed",
+    currency: "USD",
+    monthlyTotalCents: selectedItems.reduce((total, item) => total + item.monthlyPriceCents, 0),
+    items: selectedItems.map(({ id, name, description, connector, monthlyPriceCents }) => ({ id, name, description, connector, monthlyPriceCents })),
+    activations: [],
+    createdAt: new Date().toISOString(),
+    decidedAt: null,
+  };
+  writeAutomationQuotes([quote, ...readAutomationQuotes()]);
+  appendAuditEvent({
+    action: "automation_quote_created",
+    tenantId: access.tenantId,
+    role: access.role,
+    resource: "automation-quote",
+    resourceId: quote.id,
+    summary: `Created automation proposal for ${tenantName}`,
+    details: { automationIds: selectedItems.map((item) => item.id), monthlyTotalCents: quote.monthlyTotalCents },
+  });
+  return c.json({ quote }, 201);
+});
+
+app.post("/api/saas/quotes/:tenantName/:quoteId/decision", async (c) => {
+  const tenantName = decodeURIComponent(c.req.param("tenantName"));
+  const access = await resolveQueueWriteContext(c);
+  const required = process.env.REQUIRE_AGENT_QUEUE_AUTH === "true" || process.env.NODE_ENV === "production";
+  if (required && !access.isAuthorized) return c.json({ error: "Authentication required.", code: "AUTH_REQUIRED" }, 401);
+  if (required && !isAuthorizedForTenant(access, tenantName)) return c.json({ error: "Tenant access denied.", code: "TENANT_ACCESS_DENIED" }, 403);
+
+  const body = await c.req.json().catch(() => ({}));
+  if (body.decision !== "accepted" && body.decision !== "rejected") {
+    return c.json({ error: "Decision must be accepted or rejected." }, 400);
+  }
+
+  const quotes = readAutomationQuotes();
+  const quoteIndex = quotes.findIndex((quote) => quote.id === c.req.param("quoteId") && quote.tenantName === tenantName);
+  if (quoteIndex < 0) return c.json({ error: "Quote not found." }, 404);
+  if (quotes[quoteIndex].status !== "proposed") return c.json({ error: "This quote already has a decision.", code: "QUOTE_ALREADY_DECIDED" }, 409);
+
+  const decision = body.decision as "accepted" | "rejected";
+  const quote: AutomationQuote = {
+    ...quotes[quoteIndex],
+    status: decision,
+    decidedAt: new Date().toISOString(),
+    activations: decision === "accepted"
+      ? quotes[quoteIndex].items.map((item) => ({ automationId: item.id, connector: item.connector, status: "waiting_for_integration" }))
+      : [],
+  };
+  quotes[quoteIndex] = quote;
+  writeAutomationQuotes(quotes);
+  appendAuditEvent({
+    action: `automation_quote_${decision}`,
+    tenantId: access.tenantId,
+    role: access.role,
+    resource: "automation-quote",
+    resourceId: quote.id,
+    summary: `${decision} automation proposal for ${tenantName}`,
+    details: { automationIds: quote.items.map((item) => item.id), monthlyTotalCents: quote.monthlyTotalCents },
+  });
+  return c.json({ quote, message: decision === "accepted"
+    ? "Consent recorded. Activations wait for verified provider integrations."
+    : "Proposal declined; no automation was activated." });
+});
 
 const connectorRegistry = [
   { name: "CRM", owner: "Sales automation", envKeys: ["CRM_API_KEY", "CRM_BASE_URL", "CRM_WEBHOOK_URL"] },

@@ -528,6 +528,149 @@ h2 {
   color: #a5f3fc;
 }
 
+.automation-quote-panel {
+  grid-column: 1 / -1;
+}
+
+.automation-selection {
+  display: grid;
+}
+
+.automation-choice {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 4px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  cursor: pointer;
+}
+
+.automation-choice input {
+  width: 18px;
+  height: 18px;
+  accent-color: #2dd4bf;
+}
+
+.automation-choice-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.automation-choice-copy strong,
+.automation-price,
+.quote-total-row strong {
+  color: #f8fafc;
+}
+
+.automation-choice-copy small,
+.quote-disclaimer,
+.activation-pending {
+  color: #cbd5e1;
+}
+
+.automation-price {
+  white-space: nowrap;
+}
+
+.quote-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-top: 16px;
+}
+
+.quote-total-row > span {
+  margin-right: auto;
+  color: #cbd5e1;
+}
+
+.quote-submit {
+  min-height: 42px;
+  border-radius: 6px;
+  padding: 0.65rem 1rem;
+}
+
+.quote-disclaimer,
+.quote-message {
+  margin-top: 12px;
+  font-size: 0.82rem;
+}
+
+.quote-message {
+  color: #99f6e4;
+}
+
+.quote-history {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.quote-history h3 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 0.95rem;
+}
+
+.quote-item {
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.04);
+}
+
+.quote-item-heading,
+.quote-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.quote-item-heading strong {
+  color: #f8fafc;
+}
+
+.quote-item > p {
+  margin-top: 6px;
+  color: #cbd5e1;
+}
+
+.quote-status {
+  color: #fde68a;
+  font-size: 0.78rem;
+}
+
+.quote-status.accepted {
+  color: #a7f3d0;
+}
+
+.quote-status.rejected {
+  color: #fca5a5;
+}
+
+.quote-actions {
+  justify-content: flex-start;
+  margin-top: 10px;
+}
+
+.quote-actions button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 6px;
+  background: transparent;
+  color: #f8fafc;
+}
+
+.activation-pending {
+  display: block;
+  margin-top: 8px;
+}
+
 .tenant-grid {
   margin-top: 28px;
   display: grid;
@@ -1045,5 +1188,21 @@ h2 {
 
   .hero-kpis {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+
+  .automation-choice {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .automation-price {
+    grid-column: 2;
+  }
+
+  .quote-total-row {
+    justify-content: flex-start;
+  }
+
+  .quote-total-row > span {
+    width: 100%;
   }
 }

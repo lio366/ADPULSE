@@ -13,6 +13,23 @@ type SummaryCard = {
   value: string;
 };
 
+type AutomationOption = {
+  id: string;
+  name: string;
+  description: string;
+  connector: string;
+  monthlyPriceCents: number;
+};
+
+type AutomationQuote = {
+  id: string;
+  status: "proposed" | "accepted" | "rejected";
+  monthlyTotalCents: number;
+  items: Array<{ id: string; name: string; connector: string; monthlyPriceCents: number }>;
+  activations: Array<{ automationId: string; connector: string; status: string }>;
+  createdAt: string;
+};
+
 type Snapshot = {
   summary: {
     leadsQualified: number;
@@ -25,7 +42,6 @@ type Snapshot = {
   actionQueue: string[];
   governance: Array<{ label: string; value: string }>;
   customers: Array<{ name: string; plan: string; revenue: string; health: string }>;
-  automations: Array<{ label: string; value: string }>;
   tenants: Array<{ name: string; plan: string; region: string; seats: number; status: string }>;
   roles: Array<{ name: string; description: string }>;
 };
@@ -87,12 +103,6 @@ const fallbackSnapshot: Snapshot = {
     { name: "Autofix Center", plan: "Pro", revenue: "$12.4k", health: "Muy buena" },
     { name: "Ruta 24", plan: "Scale", revenue: "$8.7k", health: "Buena" },
     { name: "Moto Verde", plan: "Starter", revenue: "$4.3k", health: "Atención" },
-  ],
-  automations: [
-    { label: "Lead scoring", value: "Activa" },
-    { label: "CRM follow-up", value: "Activa" },
-    { label: "Asignación de tareas", value: "Activa" },
-    { label: "Aprobaciones automáticas", value: "Supervisada" },
   ],
   tenants: [
     { name: "Autofix Center", plan: "Pro", region: "Florida", seats: 24, status: "Activa" },
@@ -177,6 +187,11 @@ export default function App({ initialTenant = "Autofix Center" }: { initialTenan
   } | null>(null);
   const [activationMessage, setActivationMessage] = useState("");
   const [isActivating, setIsActivating] = useState(false);
+  const [automationOptions, setAutomationOptions] = useState<AutomationOption[]>([]);
+  const [selectedAutomationIds, setSelectedAutomationIds] = useState<string[]>([]);
+  const [automationQuotes, setAutomationQuotes] = useState<AutomationQuote[]>([]);
+  const [quoteMessage, setQuoteMessage] = useState("");
+  const [isQuoteBusy, setIsQuoteBusy] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -430,8 +445,78 @@ export default function App({ initialTenant = "Autofix Center" }: { initialTenan
     };
   }, [selectedTenant, snapshot]);
 
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      fetch("/api/saas/automation/catalog").then((response) => {
+        if (!response.ok) throw new Error("No se pudo cargar el catálogo de automatizaciones.");
+        return response.json() as Promise<{ automations: AutomationOption[] }>;
+      }),
+      fetch(`/api/saas/quotes/${encodeURIComponent(selectedTenant)}`, { credentials: "same-origin" }).then((response) => {
+        if (!response.ok) throw new Error("No se pudieron cargar los presupuestos del tenant.");
+        return response.json() as Promise<{ quotes: AutomationQuote[] }>;
+      }),
+    ])
+      .then(([catalog, quoteList]) => {
+        if (!active) return;
+        setAutomationOptions(catalog.automations);
+        setAutomationQuotes(quoteList.quotes);
+        setQuoteMessage("");
+      })
+      .catch((error: unknown) => {
+        if (active) setQuoteMessage(error instanceof Error ? error.message : "Error al cargar automatizaciones.");
+      });
+    return () => { active = false; };
+  }, [selectedTenant]);
+
   const data = snapshot ?? fallbackSnapshot;
   const selected = data.tenants.find((tenant) => tenant.name === selectedTenant) ?? data.tenants[0];
+  const selectedMonthlyTotal = automationOptions
+    .filter((automation) => selectedAutomationIds.includes(automation.id))
+    .reduce((total, automation) => total + automation.monthlyPriceCents, 0);
+
+  const handleCreateQuote = async () => {
+    setIsQuoteBusy(true);
+    setQuoteMessage("");
+    try {
+      const response = await fetch(`/api/saas/quotes/${encodeURIComponent(selectedTenant)}`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ automationIds: selectedAutomationIds }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "No se pudo crear el presupuesto.");
+      setAutomationQuotes((current) => [payload.quote, ...current]);
+      setSelectedAutomationIds([]);
+      setQuoteMessage("Presupuesto generado y guardado. El envío por correo requiere el conector de notificaciones.");
+    } catch (error) {
+      setQuoteMessage(error instanceof Error ? error.message : "No se pudo generar el presupuesto.");
+    } finally {
+      setIsQuoteBusy(false);
+    }
+  };
+
+  const handleQuoteDecision = async (quoteId: string, decision: "accepted" | "rejected") => {
+    setIsQuoteBusy(true);
+    setQuoteMessage("");
+    try {
+      const response = await fetch(`/api/saas/quotes/${encodeURIComponent(selectedTenant)}/${quoteId}/decision`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ decision }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "No se pudo guardar la decisión.");
+      setAutomationQuotes((current) => current.map((quote) => quote.id === quoteId ? payload.quote : quote));
+      setQuoteMessage(payload.message);
+    } catch (error) {
+      setQuoteMessage(error instanceof Error ? error.message : "No se pudo guardar la decisión.");
+    } finally {
+      setIsQuoteBusy(false);
+    }
+  };
 
   const handleActivationToggle = async () => {
     if (!governanceState) return;
@@ -908,19 +993,61 @@ export default function App({ initialTenant = "Autofix Center" }: { initialTenan
           </table>
         </div>
 
-        <div className="panel">
+        <div className="panel automation-quote-panel">
           <div className="panel-header">
-            <h2>Automatizaciones</h2>
-            <span>Core</span>
+            <h2>Elige tus automatizaciones</h2>
+            <span>Presupuesto mensual · USD</span>
           </div>
-          <div className="automation-grid">
-            {data.automations.map((item) => (
-              <div key={item.label} className="automation-item">
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
-              </div>
+          <div className="automation-selection">
+            {automationOptions.map((automation) => (
+              <label key={automation.id} className="automation-choice">
+                <input
+                  type="checkbox"
+                  checked={selectedAutomationIds.includes(automation.id)}
+                  onChange={(event) => setSelectedAutomationIds((current) => event.target.checked
+                    ? [...current, automation.id]
+                    : current.filter((id) => id !== automation.id))}
+                />
+                <span className="automation-choice-copy">
+                  <strong>{automation.name}</strong>
+                  <small>{automation.description} Conector: {automation.connector}.</small>
+                </span>
+                <strong className="automation-price">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(automation.monthlyPriceCents / 100)}/mes</strong>
+              </label>
             ))}
           </div>
+          <div className="quote-total-row">
+            <span>Total mensual seleccionado</span>
+            <strong>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(selectedMonthlyTotal / 100)}/mes</strong>
+            <button type="button" className="primary-button quote-submit" disabled={isQuoteBusy || selectedAutomationIds.length === 0} onClick={handleCreateQuote}>
+              {isQuoteBusy ? "Procesando..." : "Generar presupuesto"}
+            </button>
+          </div>
+          {quoteMessage && <p className="quote-message" role="status">{quoteMessage}</p>}
+          <p className="quote-disclaimer">Aceptar registra tu decisión. La activación operativa requiere que el conector del proceso esté configurado y verificado.</p>
+          {automationQuotes.length > 0 && (
+            <div className="quote-history">
+              <h3>Presupuestos de {selectedTenant}</h3>
+              {automationQuotes.map((quote) => (
+                <article key={quote.id} className="quote-item">
+                  <div className="quote-item-heading">
+                    <strong>{quote.items.map((item) => item.name).join(", ")}</strong>
+                    <span className={`quote-status ${quote.status}`}>{quote.status === "proposed" ? "Pendiente" : quote.status === "accepted" ? "Aceptado" : "Rechazado"}</span>
+                  </div>
+                  <p>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(quote.monthlyTotalCents / 100)}/mes</p>
+                  {quote.status === "proposed" && (
+                    <div className="quote-actions">
+                      <button type="button" disabled={isQuoteBusy} onClick={() => handleQuoteDecision(quote.id, "accepted")}>Aceptar</button>
+                      <button type="button" disabled={isQuoteBusy} onClick={() => handleQuoteDecision(quote.id, "rejected")}>Rechazar</button>
+                    </div>
+                  )}
+                  {quote.activations.map((activation) => (
+                    <small key={activation.automationId} className="activation-pending">{activation.automationId}: pendiente de integración {activation.connector}</small>
+                  ))}
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
