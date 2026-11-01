@@ -12,6 +12,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Link, Route, Routes } from 'react-router'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { buildExecutiveScorecard } from './executive-scorecard'
 import CommercialView from '@/pages/CommercialView'
 import BusinessOS from '@/pages/BusinessOS'
 import CustomerPortal from '@/pages/CustomerPortal'
@@ -451,6 +452,8 @@ function CommandView({ state, dispatch, onNew, onOpenMission, onOpenAgent, notif
   const completed = state.missions.filter(m => m.status === 'done').length
   const pending = state.missions.filter(m => m.status === 'approval').length
   const enabled = state.agents.filter(a => a.enabled).length
+  const executive = buildExecutiveScorecard(state)
+
   return (
     <>
       <SectionTitle
@@ -465,6 +468,31 @@ function CommandView({ state, dispatch, onNew, onOpenMission, onOpenAgent, notif
         <div className="metric"><span>CICLOS COMPLETADOS</span><strong>{completed.toString().padStart(2, '0')}</strong><small><CheckCircle2 size={14} />Con aprendizaje acumulado</small></div>
         <div className="metric"><span>LÍMITE DIARIO</span><strong>{money(state.settings.dailyBudget)}</strong><small><ShieldCheck size={14} />{pending} decisiones pendientes</small></div>
       </div>
+
+      <section className="panel executive-panel">
+        <div className="panel-heading compact">
+          <div><span className="eyebrow">TABLERO EJECUTIVO</span><h2>Scorecard de dirección</h2></div>
+          <span className="live-indicator"><span />CEO READY</span>
+        </div>
+        <div className="executive-grid">
+          {executive.scorecards.map(card => (
+            <div key={card.label} className={`executive-card tone-${card.tone}`}>
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+              <small>{card.delta}</small>
+            </div>
+          ))}
+        </div>
+        <div className="executive-priorities">
+          {executive.priorities.map(priority => (
+            <div key={priority} className="priority-chip">
+              <span className="priority-dot" />
+              <p>{priority}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="panel network-panel">
         <div className="panel-heading">
           <div><span className="eyebrow">RED DE TRABAJO</span><h2>Un objetivo entra. Seis especialistas lo hacen avanzar.</h2></div>

@@ -1,0 +1,11 @@
+services:
+  eco-ia:
+    build:
+      context: ./eco_ia
+      dockerfile: Dockerfile
+    container_name: eco-ia-runtime
+    ports:
+      - "8001:8000"
+    restart: unless-stopped
+    environment:
+      PYTHONUNBUFFERED: "1"
