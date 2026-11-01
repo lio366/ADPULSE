@@ -1,0 +1,20 @@
+groups:
+  - name: automatica-business
+    rules:
+      - alert: ApplicationReadinessProbeFailed
+        expr: probe_success{job="blackbox-app-readiness"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Automática Business readiness probe failed"
+          description: "The application readiness endpoint has failed for more than two minutes."
+
+      - alert: HostMemoryPressure
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host memory usage above 90%"
+          description: "Investigate memory pressure and container limits."
